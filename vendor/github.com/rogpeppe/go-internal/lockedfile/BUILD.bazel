@@ -1,0 +1,47 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "lockedfile.go",
+        "lockedfile_filelock.go",
+        "lockedfile_plan9.go",
+        "mutex.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/lockedfile",
+    importpath = "github.com/rogpeppe/go-internal/lockedfile",
+    visibility = ["//visibility:public"],
+    deps = select({
+        "@io_bazel_rules_go//go/platform:android": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:dragonfly": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:freebsd": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:linux": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:nacl": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:netbsd": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:openbsd": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:solaris": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:windows": [
+            "//vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)

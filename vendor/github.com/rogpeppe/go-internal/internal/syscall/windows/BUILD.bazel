@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "mksyscall.go",
+        "psapi_windows.go",
+        "reparse_windows.go",
+        "security_windows.go",
+        "symlink_windows.go",
+        "syscall_windows.go",
+        "zsyscall_windows.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/internal/syscall/windows",
+    importpath = "github.com/rogpeppe/go-internal/internal/syscall/windows",
+    visibility = ["//vendor/github.com/rogpeppe/go-internal:__subpackages__"],
+    deps = select({
+        "@io_bazel_rules_go//go/platform:windows": [
+            "//vendor/github.com/rogpeppe/go-internal/internal/syscall/windows/sysdll:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)

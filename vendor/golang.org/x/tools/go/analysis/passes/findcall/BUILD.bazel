@@ -1,0 +1,10 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["findcall.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/golang.org/x/tools/go/analysis/passes/findcall",
+    importpath = "golang.org/x/tools/go/analysis/passes/findcall",
+    visibility = ["//visibility:public"],
+    deps = ["//vendor/golang.org/x/tools/go/analysis:go_default_library"],
+)

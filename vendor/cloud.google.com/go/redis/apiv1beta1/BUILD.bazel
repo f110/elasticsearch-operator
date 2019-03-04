@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cloud_redis_client.go",
+        "doc.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/cloud.google.com/go/redis/apiv1beta1",
+    importpath = "cloud.google.com/go/redis/apiv1beta1",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/cloud.google.com/go/longrunning:go_default_library",
+        "//vendor/cloud.google.com/go/longrunning/autogen:go_default_library",
+        "//vendor/github.com/golang/protobuf/proto:go_default_library",
+        "//vendor/github.com/golang/protobuf/ptypes/any:go_default_library",
+        "@com_github_googleapis_gax_go//v2:go_default_library",
+        "@org_golang_google_api//iterator:go_default_library",
+        "@org_golang_google_api//option:go_default_library",
+        "@org_golang_google_api//transport:go_default_library",
+        "@org_golang_google_genproto//googleapis/cloud/redis/v1beta1:go_default_library",
+        "@org_golang_google_genproto//googleapis/longrunning:go_default_library",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//metadata:go_default_library",
+    ],
+)

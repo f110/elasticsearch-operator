@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["operator.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/ansible/operator",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/ansible/operator",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/ansible/controller:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/ansible/flags:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/ansible/proxy/controllermap:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/ansible/runner:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/manager:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/log:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/signals:go_default_library",
+    ],
+)

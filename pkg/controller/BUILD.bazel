@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "add_elasticsearchcluster.go",
+        "controller.go",
+    ],
+    importpath = "github.com/f110/elasticsearch-operator/pkg/controller",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/controller/elasticsearchcluster:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/manager:go_default_library",
+    ],
+)

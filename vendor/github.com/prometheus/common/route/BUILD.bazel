@@ -1,0 +1,10 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["route.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/prometheus/common/route",
+    importpath = "github.com/prometheus/common/route",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_julienschmidt_httprouter//:go_default_library"],
+)

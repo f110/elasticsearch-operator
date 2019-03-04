@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/coreos/prometheus-operator/cmd/prometheus-config-reloader",
+    importpath = "github.com/coreos/prometheus-operator/cmd/prometheus-config-reloader",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//vendor/github.com/coreos/prometheus-operator/pkg/version:go_default_library",
+        "@com_github_go_kit_kit//log:go_default_library",
+        "@com_github_improbable_eng_thanos//pkg/reloader:go_default_library",
+        "@com_github_oklog_run//:go_default_library",
+        "@in_gopkg_alecthomas_kingpin_v2//:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "prometheus-config-reloader",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

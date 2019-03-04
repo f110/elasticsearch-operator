@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "parser.go",
+        "pkgpath.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/mailru/easyjson/parser",
+    importpath = "github.com/mailru/easyjson/parser",
+    visibility = ["//visibility:public"],
+)

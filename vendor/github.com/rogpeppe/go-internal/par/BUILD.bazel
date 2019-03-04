@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["work.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/par",
+    importpath = "github.com/rogpeppe/go-internal/par",
+    visibility = ["//visibility:public"],
+)

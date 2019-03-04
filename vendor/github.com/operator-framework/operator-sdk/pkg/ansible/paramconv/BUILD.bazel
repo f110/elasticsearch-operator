@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["paramconv.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/ansible/paramconv",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/ansible/paramconv",
+    visibility = ["//visibility:public"],
+)

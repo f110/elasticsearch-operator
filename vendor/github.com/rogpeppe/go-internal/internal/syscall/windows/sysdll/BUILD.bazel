@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["sysdll.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/internal/syscall/windows/sysdll",
+    importpath = "github.com/rogpeppe/go-internal/internal/syscall/windows/sysdll",
+    visibility = ["//vendor/github.com/rogpeppe/go-internal:__subpackages__"],
+)

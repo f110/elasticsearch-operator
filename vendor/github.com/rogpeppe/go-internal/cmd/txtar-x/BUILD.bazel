@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["extract.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/cmd/txtar-x",
+    importpath = "github.com/rogpeppe/go-internal/cmd/txtar-x",
+    visibility = ["//visibility:private"],
+    deps = ["//vendor/github.com/rogpeppe/go-internal/txtar:go_default_library"],
+)
+
+go_binary(
+    name = "txtar-x",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

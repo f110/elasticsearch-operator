@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["kubeconfig.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/ansible/proxy/kubeconfig",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/ansible/proxy/kubeconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/internal/util/fileutil:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/log:go_default_library",
+    ],
+)

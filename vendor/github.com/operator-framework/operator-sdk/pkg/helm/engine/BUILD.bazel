@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "doc.go",
+        "ownerref.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/helm/engine",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/helm/engine",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1/unstructured:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/runtime:go_default_library",
+        "@io_k8s_helm//pkg/chartutil:go_default_library",
+        "@io_k8s_helm//pkg/proto/hapi/chart:go_default_library",
+        "@io_k8s_helm//pkg/releaseutil:go_default_library",
+        "@io_k8s_helm//pkg/tiller/environment:go_default_library",
+    ],
+)

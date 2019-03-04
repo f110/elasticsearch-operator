@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/coreos/prometheus-operator/test/basic-auth-test-app",
+    importpath = "github.com/coreos/prometheus-operator/test/basic-auth-test-app",
+    visibility = ["//visibility:private"],
+    deps = ["//vendor/github.com/prometheus/client_golang/prometheus/promhttp:go_default_library"],
+)
+
+go_binary(
+    name = "basic-auth-test-app",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

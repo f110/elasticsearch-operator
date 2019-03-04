@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["rpcreplay.pb.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/cloud.google.com/go/rpcreplay/proto/rpcreplay",
+    importpath = "cloud.google.com/go/rpcreplay/proto/rpcreplay",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/golang/protobuf/proto:go_default_library",
+        "//vendor/github.com/golang/protobuf/ptypes/any:go_default_library",
+    ],
+)

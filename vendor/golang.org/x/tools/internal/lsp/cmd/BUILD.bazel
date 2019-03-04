@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cmd.go",
+        "definition.go",
+        "location.go",
+        "query.go",
+        "serve.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/golang.org/x/tools/internal/lsp/cmd",
+    importpath = "golang.org/x/tools/internal/lsp/cmd",
+    visibility = ["//vendor/golang.org/x/tools:__subpackages__"],
+    deps = [
+        "//vendor/golang.org/x/tools/cmd/guru/serial:go_default_library",
+        "//vendor/golang.org/x/tools/go/packages:go_default_library",
+        "//vendor/golang.org/x/tools/internal/jsonrpc2:go_default_library",
+        "//vendor/golang.org/x/tools/internal/lsp:go_default_library",
+        "//vendor/golang.org/x/tools/internal/lsp/cache:go_default_library",
+        "//vendor/golang.org/x/tools/internal/lsp/source:go_default_library",
+        "//vendor/golang.org/x/tools/internal/tool:go_default_library",
+    ],
+)

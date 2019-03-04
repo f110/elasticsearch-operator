@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["inputdir.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/ansible/runner/internal/inputdir",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/ansible/runner/internal/inputdir",
+    visibility = ["//vendor/github.com/operator-framework/operator-sdk/pkg/ansible/runner:__subpackages__"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/internal/util/fileutil:go_default_library",
+        "//vendor/github.com/spf13/afero:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/log:go_default_library",
+    ],
+)

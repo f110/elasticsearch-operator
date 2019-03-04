@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "custom_map_key_type.go",
+        "data.go",
+        "disallow_unknown.go",
+        "embedded_type.go",
+        "errors.go",
+        "named_type.go",
+        "nested_easy.go",
+        "nothing.go",
+        "omitempty.go",
+        "reference_to_pointer.go",
+        "snake.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/mailru/easyjson/tests",
+    importpath = "github.com/mailru/easyjson/tests",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/mailru/easyjson:go_default_library",
+        "//vendor/github.com/mailru/easyjson/jwriter:go_default_library",
+        "//vendor/github.com/mailru/easyjson/opt:go_default_library",
+    ],
+)

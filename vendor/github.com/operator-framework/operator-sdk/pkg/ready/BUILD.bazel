@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["ready.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/ready",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/ready",
+    visibility = ["//visibility:public"],
+)

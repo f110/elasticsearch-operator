@@ -1,0 +1,35 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "controller.go",
+        "doc.go",
+        "reconcile.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/helm/controller",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/helm/controller",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/internal/util/diffutil:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/internal/types:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/release:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/predicate:go_default_library",
+        "//vendor/gopkg.in/yaml.v2:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/api/errors:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/api/meta:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1/unstructured:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/runtime/schema:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/client:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/controller:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/event:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/handler:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/manager:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/predicate:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/reconcile:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/log:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/source:go_default_library",
+        "@io_k8s_helm//pkg/proto/hapi/release:go_default_library",
+    ],
+)

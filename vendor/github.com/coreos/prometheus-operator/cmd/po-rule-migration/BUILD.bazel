@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/coreos/prometheus-operator/cmd/po-rule-migration",
+    importpath = "github.com/coreos/prometheus-operator/cmd/po-rule-migration",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//vendor/github.com/coreos/prometheus-operator/pkg/apis/monitoring:go_default_library",
+        "//vendor/github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1:go_default_library",
+        "//vendor/github.com/ghodss/yaml:go_default_library",
+        "//vendor/github.com/pkg/errors:go_default_library",
+        "//vendor/k8s.io/api/core/v1:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/util/yaml:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "po-rule-migration",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

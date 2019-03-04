@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "filelock.go",
+        "filelock_fcntl.go",
+        "filelock_other.go",
+        "filelock_plan9.go",
+        "filelock_unix.go",
+        "filelock_windows.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/lockedfile/internal/filelock",
+    importpath = "github.com/rogpeppe/go-internal/lockedfile/internal/filelock",
+    visibility = ["//vendor/github.com/rogpeppe/go-internal/lockedfile:__subpackages__"],
+    deps = select({
+        "@io_bazel_rules_go//go/platform:windows": [
+            "//vendor/github.com/rogpeppe/go-internal/internal/syscall/windows:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)

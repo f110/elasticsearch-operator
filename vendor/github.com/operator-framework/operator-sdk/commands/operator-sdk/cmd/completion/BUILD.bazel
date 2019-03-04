@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "bash.go",
+        "zsh.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/commands/operator-sdk/cmd/completion",
+    importpath = "github.com/operator-framework/operator-sdk/commands/operator-sdk/cmd/completion",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_spf13_cobra//:go_default_library"],
+)

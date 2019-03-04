@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "addtoscheme_cache_v1alpha1.go",
+        "apis.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/test/test-framework/pkg/apis",
+    importpath = "github.com/operator-framework/operator-sdk/test/test-framework/pkg/apis",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/test/test-framework/pkg/apis/cache/v1alpha1:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/runtime:go_default_library",
+    ],
+)

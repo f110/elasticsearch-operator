@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["local.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/commands/operator-sdk/cmd/up",
+    importpath = "github.com/operator-framework/operator-sdk/commands/operator-sdk/cmd/up",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/internal/util/k8sutil:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/internal/util/projutil:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/ansible:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/ansible/flags:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/flags:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/k8sutil:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/log/zap:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/scaffold:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/version:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/log:go_default_library",
+        "@com_github_sirupsen_logrus//:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+    ],
+)

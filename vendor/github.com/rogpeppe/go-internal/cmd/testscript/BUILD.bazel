@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "help.go",
+        "main.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/cmd/testscript",
+    importpath = "github.com/rogpeppe/go-internal/cmd/testscript",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//vendor/github.com/rogpeppe/go-internal/goproxytest:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/gotooltest:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/testscript:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/txtar:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "testscript",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

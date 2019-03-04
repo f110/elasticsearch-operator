@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["run.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/helm",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/helm",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/client:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/controller:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/flags:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/release:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/helm/watches:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/k8sutil:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/leader:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/version:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/client/config:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/manager:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/log:go_default_library",
+        "//vendor/sigs.k8s.io/controller-runtime/pkg/runtime/signals:go_default_library",
+        "@io_k8s_helm//pkg/storage:go_default_library",
+        "@io_k8s_helm//pkg/storage/driver:go_default_library",
+    ],
+)

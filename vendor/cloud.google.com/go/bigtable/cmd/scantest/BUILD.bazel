@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["scantest.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/cloud.google.com/go/bigtable/cmd/scantest",
+    importpath = "cloud.google.com/go/bigtable/cmd/scantest",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//vendor/cloud.google.com/go/bigtable:go_default_library",
+        "//vendor/cloud.google.com/go/bigtable/internal/cbtconfig:go_default_library",
+        "//vendor/cloud.google.com/go/bigtable/internal/stat:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "scantest",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

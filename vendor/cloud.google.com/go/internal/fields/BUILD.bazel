@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "fields.go",
+        "fold.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/cloud.google.com/go/internal/fields",
+    importpath = "cloud.google.com/go/internal/fields",
+    visibility = ["//vendor/cloud.google.com/go:__subpackages__"],
+)

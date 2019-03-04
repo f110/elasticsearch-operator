@@ -1,0 +1,10 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["flags.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/pkg/internal/flags",
+    importpath = "github.com/operator-framework/operator-sdk/pkg/internal/flags",
+    visibility = ["//vendor/github.com/operator-framework/operator-sdk/pkg:__subpackages__"],
+    deps = ["//vendor/github.com/spf13/pflag:go_default_library"],
+)

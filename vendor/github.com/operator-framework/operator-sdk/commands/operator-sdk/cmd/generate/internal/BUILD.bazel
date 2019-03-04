@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["genutil.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/commands/operator-sdk/cmd/generate/internal",
+    importpath = "github.com/operator-framework/operator-sdk/commands/operator-sdk/cmd/generate/internal",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/internal/util/projutil:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/scaffold:go_default_library",
+    ],
+)

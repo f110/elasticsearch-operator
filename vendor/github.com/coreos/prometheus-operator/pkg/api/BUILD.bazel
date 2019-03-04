@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["api.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/coreos/prometheus-operator/pkg/api",
+    importpath = "github.com/coreos/prometheus-operator/pkg/api",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1:go_default_library",
+        "//vendor/github.com/coreos/prometheus-operator/pkg/client/versioned:go_default_library",
+        "//vendor/github.com/coreos/prometheus-operator/pkg/k8sutil:go_default_library",
+        "//vendor/github.com/coreos/prometheus-operator/pkg/prometheus:go_default_library",
+        "//vendor/github.com/pkg/errors:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/k8s.io/client-go/kubernetes:go_default_library",
+        "@com_github_go_kit_kit//log:go_default_library",
+    ],
+)

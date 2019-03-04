@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["scaffold-helm-image.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/operator-framework/operator-sdk/hack/image/helm",
+    importpath = "github.com/operator-framework/operator-sdk/hack/image/helm",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//vendor/github.com/operator-framework/operator-sdk/internal/util/projutil:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/scaffold:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/scaffold/helm:go_default_library",
+        "//vendor/github.com/operator-framework/operator-sdk/pkg/scaffold/input:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "helm",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

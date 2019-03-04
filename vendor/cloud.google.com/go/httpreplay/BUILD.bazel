@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["httpreplay.go"],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/cloud.google.com/go/httpreplay",
+    importpath = "cloud.google.com/go/httpreplay",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/cloud.google.com/go/httpreplay/internal/proxy:go_default_library",
+        "@org_golang_google_api//option:go_default_library",
+        "@org_golang_google_api//transport/http:go_default_library",
+    ],
+)

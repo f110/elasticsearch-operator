@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "allhex.go",
+        "proxy.go",
+        "pseudo.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/goproxytest",
+    importpath = "github.com/rogpeppe/go-internal/goproxytest",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/rogpeppe/go-internal/module:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/par:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/semver:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/txtar:go_default_library",
+    ],
+)

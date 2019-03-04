@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cmd.go",
+        "cover.go",
+        "doc.go",
+        "envvarname.go",
+        "envvarname_windows.go",
+        "exe.go",
+        "testscript.go",
+    ],
+    importmap = "github.com/f110/elasticsearch-operator/vendor/github.com/rogpeppe/go-internal/testscript",
+    importpath = "github.com/rogpeppe/go-internal/testscript",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/rogpeppe/go-internal/imports:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/internal/os/execpath:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/internal/textutil:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/par:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/testenv:go_default_library",
+        "//vendor/github.com/rogpeppe/go-internal/txtar:go_default_library",
+        "@in_gopkg_errgo_v2//fmt/errors:go_default_library",
+    ],
+)
