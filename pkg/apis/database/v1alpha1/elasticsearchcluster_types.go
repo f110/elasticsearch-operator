@@ -27,6 +27,7 @@ type ElasticsearchClusterNodeSpec struct {
 	StorageClass string `json:"storage_class"`
 	DiskSize     string `json:"disk_size"`
 	HeapSize     string `json:"heap_size"`
+	Days         int32  `json:"days"`
 }
 
 type ElasticsearchClusterForwarderSpec struct {

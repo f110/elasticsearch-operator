@@ -3,6 +3,7 @@ package elasticsearchcluster
 import (
 	"bytes"
 	"context"
+	"strconv"
 	"text/template"
 
 	databasev1alpha1 "github.com/f110/elasticsearch-operator/pkg/apis/database/v1alpha1"
@@ -185,6 +186,10 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 	}
 	clientService := newClientServiceForCR(instance)
 	if res, err := r.serviceReconcile(reqLogger, instance, clientService); err != nil {
+		return res, err
+	}
+	curatorConfigMap := newCuratorConfigMapForCR(instance)
+	if res, err := r.configMapReconcile(reqLogger, instance, curatorConfigMap); err != nil {
 		return res, err
 	}
 
@@ -702,6 +707,70 @@ func newConfigMapsElasticsearchForCR(cr *databasev1alpha1.ElasticsearchCluster) 
 	})
 
 	return configMaps
+}
+
+func newCuratorConfigMapForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-curator-conf",
+		},
+		Data: map[string]string{
+			"config.yml": `client:
+  hosts:
+    - ` + cr.Name + `-client
+  port: 9200`,
+			"actions.yml": `actions:
+  1:
+    action: allocation
+    description: "Apply shard allocation filtering rules to the specified indices"
+    options:
+      key: box_type
+      value: warm
+      allocation_type: require
+      wait_for_completion: true
+      ignore_empty_list: true
+      timeout_override:
+      disable_action: false
+    filters:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: ` + strconv.Itoa(int(cr.Spec.HotNode.Days)) + `
+  2:
+    action: forcemerge
+    description: "Perform a forceMerge on selected indices to 'max_num_segments' per shard"
+    options:
+      max_num_segments: 1
+      delay:
+      timeout_override: 21600
+      ignore_empty_list: true
+      disable_action: false
+    filters:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: ` + strconv.Itoa(int(cr.Spec.HotNode.Days)) + `
+  3:
+    action: delete_indices
+    description: Delete indices
+    options:
+      ignore_empty_list: true
+      timeout_override:
+      continue_if_exception: false
+      disable_action: false
+    filters:
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: ` + strconv.Itoa(int(cr.Spec.WarmNode.Days)),
+		},
+	}
 }
 
 func Bool(b bool) *bool {
