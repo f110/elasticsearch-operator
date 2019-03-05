@@ -1,12 +1,15 @@
 package elasticsearchcluster
 
 import (
+	"bytes"
 	"context"
+	"text/template"
 
 	databasev1alpha1 "github.com/f110/elasticsearch-operator/pkg/apis/database/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +27,42 @@ import (
 )
 
 var log = logf.Log.WithName("controller_elasticsearchcluster")
+
+var log4j2Conf = `status = error
+appender.console.type = Console
+appender.console.name = console
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] %marker%m%n
+rootLogger.level = info
+rootLogger.appenderRef.console.ref = console
+logger.searchguard.name = com.floragunn
+logger.searchguard.level = info`
+
+var dataNodeConf = `node:
+	name: ${HOSTNAME}
+	data: {{ .Data }}
+	master: {{ .Master }}
+	ingest: {{ .Ingeset }}
+
+cluster:
+	name: {{ .Name }}
+
+network:
+	host: 0.0.0.0
+
+discovery:
+	zen:
+		minimum_master_nodes: {{ .MinMasterNodes }}
+		ping.unicast.hosts: {{ .Name }}-master
+    
+gateway:
+	expected_master_nodes: 2
+	expected_data_nodes: 1
+	recover_after_time: 5m
+	recover_after_master_nodes: 2
+	recover_after_data_nodes: 1
+
+processors: ${PROCESSORS:}`
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -110,8 +149,26 @@ func (r *ReconcileElasticsearchCluster) Reconcile(request reconcile.Request) (re
 }
 
 func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster) (reconcile.Result, error) {
+	configMap := newConfigMapLog4j2ForCR(instance)
+	if res, err := r.configMapReconcile(reqLogger, instance, configMap); err != nil {
+		return res, err
+	}
+	configMaps := newConfigMapsElasticsearchForCR(instance)
+	for _, configMap := range configMaps {
+		if res, err := r.configMapReconcile(reqLogger, instance, configMap); err != nil {
+			return res, err
+		}
+	}
 	masterStatefulset := newMasterStatefulsetForCR(instance)
 	if res, err := r.statefulNodeReconcile(reqLogger, instance, masterStatefulset); err != nil {
+		return res, err
+	}
+	masterService := newMasterServiceForCR(instance)
+	if res, err := r.serviceReconcile(reqLogger, instance, masterService); err != nil {
+		return res, err
+	}
+	masterPDB := newMasterPodDisruptionBudgetForCR(instance)
+	if res, err := r.podDisruptionBudgetReconcile(reqLogger, instance, masterPDB); err != nil {
 		return res, err
 	}
 	hotStatefulset := newHotStatefulsetForCR(instance)
@@ -124,6 +181,10 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 	}
 	clientDeployment := newClientDeploymentForCR(instance)
 	if res, err := r.deploymentReconcile(reqLogger, instance, clientDeployment); err != nil {
+		return res, err
+	}
+	clientService := newClientServiceForCR(instance)
+	if res, err := r.serviceReconcile(reqLogger, instance, clientService); err != nil {
 		return res, err
 	}
 
@@ -177,6 +238,84 @@ func (r *ReconcileElasticsearchCluster) statefulNodeReconcile(reqLogger logr.Log
 
 	reqLogger.Info("Updating exists StatefulSet", "StatefulSet.Namespace", found.Namespace, "StatefulSet.Name", found.Name)
 	if err := r.client.Update(context.TODO(), node); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileElasticsearchCluster) serviceReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, service *corev1.Service) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &corev1.Service{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: service.Name, Namespace: service.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Service for client nodes", "Service.Namespace", service.Namespace, "Service.Name", service.Name)
+		err = r.client.Create(context.TODO(), service)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists Service", "Service.Namespace", found.Namespace, "Service.Name", found.Name)
+	if err := r.client.Update(context.TODO(), service); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileElasticsearchCluster) podDisruptionBudgetReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, pdb *policyv1beta1.PodDisruptionBudget) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, pdb, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &policyv1beta1.PodDisruptionBudget{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: pdb.Name, Namespace: pdb.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new PodDisruptionBudget", "PodDisruptionBudget.Namespace", pdb.Namespace, "PodDisruptionBudget.Name", pdb.Name)
+		err = r.client.Create(context.TODO(), pdb)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists PodDisruptionBudget", "PodDisruptionBudget.Namespace", found.Namespace, "PodDisruptionBudget.Name", found.Name)
+	if err := r.client.Update(context.TODO(), pdb); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileElasticsearchCluster) configMapReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, configMap *corev1.ConfigMap) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, configMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &policyv1beta1.PodDisruptionBudget{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
+		err = r.client.Create(context.TODO(), configMap)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists ConfigMap", "ConfigMap.Namespace", found.Namespace, "ConfigMap.Name", found.Name)
+	if err := r.client.Update(context.TODO(), configMap); err != nil {
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
@@ -247,6 +386,75 @@ func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1
 							},
 						},
 					},
+				},
+			},
+		},
+	}
+}
+
+func newClientServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-client",
+			Annotations: map[string]string{
+				"cloud.google.com/load-balancer-type": "Internal",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeLoadBalancer,
+			Selector: map[string]string{
+				"role": "client",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Port:       9200,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(9200),
+				},
+			},
+		},
+	}
+}
+
+func newMasterServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-master",
+			Annotations: map[string]string{
+				"service.alpha.kubernets.io/tolerate-unready-endpoints": "true",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
+			Selector: map[string]string{
+				"role": "master",
+			},
+			PublishNotReadyAddresses: true,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "internal",
+					Port:       9300,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(9300),
+				},
+			},
+		},
+	}
+}
+
+func newMasterPodDisruptionBudgetForCR(cr *databasev1alpha1.ElasticsearchCluster) *policyv1beta1.PodDisruptionBudget {
+	minAvailable := intstr.FromInt(int(cr.Spec.MasterNode.Count - 1))
+	return &policyv1beta1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-master",
+		},
+		Spec: policyv1beta1.PodDisruptionBudgetSpec{
+			MinAvailable: &minAvailable,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": "master",
 				},
 			},
 		},
@@ -405,6 +613,95 @@ func initContainersForElasticsearch(dataVolumeName string) []corev1.Container {
 			},
 		},
 	}
+}
+
+func newConfigMapLog4j2ForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-log4j2-conf",
+		},
+		Data: map[string]string{
+			"log4j2.properties": log4j2Conf,
+		},
+	}
+}
+
+func newConfigMapsElasticsearchForCR(cr *databasev1alpha1.ElasticsearchCluster) []*corev1.ConfigMap {
+	t, err := template.New("").Parse(dataNodeConf)
+	if err != nil {
+		return nil
+	}
+
+	configMaps := make([]*corev1.ConfigMap, 0)
+	buf := &bytes.Buffer{}
+
+	// for master node
+	params := struct {
+		Data           bool
+		Master         bool
+		Ingest         bool
+		Name           string
+		MinMasterNodes int32
+	}{
+		Data:           false,
+		Master:         true,
+		Ingest:         false,
+		Name:           cr.Name,
+		MinMasterNodes: cr.Spec.MasterNode.Count - 1,
+	}
+	if err := t.Execute(buf, &params); err != nil {
+		return nil
+	}
+	configMaps = append(configMaps, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "master-es-conf",
+		},
+		Data: map[string]string{
+			"elasticsearch.yml": buf.String(),
+		},
+	})
+	buf.Reset()
+
+	// for hot and warm node
+	params.Data = true
+	params.Master = false
+	if err := t.Execute(buf, &params); err != nil {
+		return nil
+	}
+	configMaps = append(configMaps, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "hot-es-conf",
+		},
+		Data: map[string]string{
+			"elasticsearch.yml": buf.String(),
+		},
+	}, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "warm-es-conf",
+		},
+		Data: map[string]string{
+			"elasticsearch.yml": buf.String(),
+		},
+	})
+	buf.Reset()
+
+	// for client node
+	params.Data = false
+	params.Master = false
+	params.Ingest = true
+	if err := t.Execute(buf, &params); err != nil {
+		return nil
+	}
+	configMaps = append(configMaps, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "client-es-conf",
+		},
+		Data: map[string]string{
+			"elasticsearch.yml": buf.String(),
+		},
+	})
+
+	return configMaps
 }
 
 func Bool(b bool) *bool {
