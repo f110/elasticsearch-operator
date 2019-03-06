@@ -6,11 +6,15 @@ import (
 	"strconv"
 	"text/template"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	databasev1alpha1 "github.com/f110/elasticsearch-operator/pkg/apis/database/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -192,6 +196,30 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 	if res, err := r.configMapReconcile(reqLogger, instance, curatorConfigMap); err != nil {
 		return res, err
 	}
+	curatorCronJob := newCuratorCronJobForCR(instance)
+	if res, err := r.cronJobReconcile(reqLogger, instance, curatorCronJob); err != nil {
+		return res, err
+	}
+	exporterServiceAccount := newExporterServiceAccountForCR(instance)
+	if res, err := r.serviceAccountReconcile(reqLogger, instance, exporterServiceAccount); err != nil {
+		return res, err
+	}
+	exporterClusterRoleBinding := newExporterClusterRoleBindingForCR(instance)
+	if res, err := r.clusterRoleBindingReconcile(reqLogger, instance, exporterClusterRoleBinding); err != nil {
+		return res, err
+	}
+	exporterDeployment := newExporterDeploymentForCR(instance)
+	if res, err := r.deploymentReconcile(reqLogger, instance, exporterDeployment); err != nil {
+		return res, err
+	}
+	exporterSerivce := newExporterServiceForCR(instance)
+	if res, err := r.serviceReconcile(reqLogger, instance, exporterSerivce); err != nil {
+		return res, err
+	}
+	exporterServiceMonitor := newExporterServiceMonitorForCR(instance)
+	if res, err := r.serviceMonitorReconcile(reqLogger, instance, exporterServiceMonitor); err != nil {
+		return res, err
+	}
 
 	return reconcile.Result{}, nil
 }
@@ -305,7 +333,7 @@ func (r *ReconcileElasticsearchCluster) configMapReconcile(reqLogger logr.Logger
 		return reconcile.Result{}, err
 	}
 
-	found := &policyv1beta1.PodDisruptionBudget{}
+	found := &corev1.ConfigMap{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
@@ -321,6 +349,110 @@ func (r *ReconcileElasticsearchCluster) configMapReconcile(reqLogger logr.Logger
 
 	reqLogger.Info("Updating exists ConfigMap", "ConfigMap.Namespace", found.Namespace, "ConfigMap.Name", found.Name)
 	if err := r.client.Update(context.TODO(), configMap); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileElasticsearchCluster) cronJobReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, cronJob *batchv1beta1.CronJob) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, cronJob, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &batchv1beta1.CronJob{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cronJob.Name, Namespace: cronJob.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new CronJob", "CronJob.Namespace", cronJob.Namespace, "CronJob.Name", cronJob.Name)
+		err = r.client.Create(context.TODO(), cronJob)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists CronJob", "CronJob.Namespace", found.Namespace, "CronJob.Name", found.Name)
+	if err := r.client.Update(context.TODO(), cronJob); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileElasticsearchCluster) serviceAccountReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, sa *corev1.ServiceAccount) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, sa, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &corev1.ServiceAccount{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: sa.Name, Namespace: sa.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ServiceAccount", "ServiceAccount.Namespace", sa.Namespace, "ServiceAccount.Name", sa.Name)
+		err = r.client.Create(context.TODO(), sa)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists ServiceAccount", "ServiceAccount.Namespace", found.Namespace, "ServiceAccount.Name", found.Name)
+	if err := r.client.Update(context.TODO(), sa); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileElasticsearchCluster) clusterRoleBindingReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, crb *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, crb, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &corev1.ServiceAccount{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: crb.Name, Namespace: crb.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ClusterRoleBinding", "ClusterRoleBinding.Namespace", crb.Namespace, "ClusterRoleBinding.Name", crb.Name)
+		err = r.client.Create(context.TODO(), crb)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists ClusterRoleBinding", "ClusterRoleBinding.Namespace", found.Namespace, "ClusterRoleBinding.Name", found.Name)
+	if err := r.client.Update(context.TODO(), crb); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileElasticsearchCluster) serviceMonitorReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, sm *monitoringv1.ServiceMonitor) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, sm, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &monitoringv1.ServiceMonitor{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: sm.Name, Namespace: sm.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ServiceMonitor", "ServiceMonitor.Namespace", sm.Namespace, "ServiceMonitor.Name", sm.Name)
+		err = r.client.Create(context.TODO(), sm)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists ServiceMonitor", "ServiceMonitor.Namespace", found.Namespace, "ServiceMonitor.Name", found.Name)
+	if err := r.client.Update(context.TODO(), sm); err != nil {
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
@@ -387,6 +519,67 @@ func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1
 								EmptyDir: &corev1.EmptyDirVolumeSource{
 									Medium:    corev1.StorageMediumMemory,
 									SizeLimit: resource.NewQuantity(256*1024*1024, resource.BinarySI), // 256Mi
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func newExporterDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-exporter",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: Int32(1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": "exporter",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"role": "exporter",
+					},
+				},
+				Spec: corev1.PodSpec{
+					ServiceAccountName: cr.Name + "-exporter",
+					Containers: []corev1.Container{
+						{
+							Name:            cr.Name,
+							Image:           "justwatch/elasticsearch_exporter:1.0.4rc1",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Args:            []string{"-web.listen-address", ":9109", "-es.uri", "http://{{ .Release.Name }}-client:9200", "-es.all", "-es.indices", "-es.shards"},
+							ReadinessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Port: intstr.FromInt(9109),
+										Path: "/health",
+									},
+								},
+							},
+						},
+						{
+							Name:            "kube-rbac-proxy",
+							Image:           "quay.io/brancz/kube-rbac-proxy:v0.4.0",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Args:            []string{"--secure-listen-address=:9108", "--upstream=http://127.0.0.1:9109/"},
+							Ports: []corev1.ContainerPort{
+								{Name: "https", ContainerPort: 9108},
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									"memory": resource.MustParse("20Mi"),
+									"cpu":    resource.MustParse("10m"),
+								},
+								Limits: corev1.ResourceList{
+									"memory": resource.MustParse("40Mi"),
+									"cpu":    resource.MustParse("20m"),
 								},
 							},
 						},
@@ -773,10 +966,150 @@ func newCuratorConfigMapForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1
 	}
 }
 
+func newCuratorCronJobForCR(cr *databasev1alpha1.ElasticsearchCluster) *batchv1beta1.CronJob {
+	return &batchv1beta1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-curator",
+		},
+		Spec: batchv1beta1.CronJobSpec{
+			Schedule: "0 1 * * *",
+			JobTemplate: batchv1beta1.JobTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: cr.Name + "-curator",
+				},
+				Spec: batchv1.JobSpec{
+					BackoffLimit: Int32(1),
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"role": "curator",
+							},
+						},
+						Spec: corev1.PodSpec{
+							RestartPolicy: corev1.RestartPolicyNever,
+							Containers: []corev1.Container{
+								{
+									Name:            "curator",
+									Image:           "bobrik/curator:5.5.4",
+									ImagePullPolicy: corev1.PullIfNotPresent,
+									Args:            []string{"--config", "/usr/share/elasticsearch-curator/config/config.yml", "/usr/share/elasticsearch-curator/config/actions.yml"},
+									VolumeMounts: []corev1.VolumeMount{
+										{
+											Name:      "conf",
+											MountPath: "/usr/share/elasticsearch-curator/config",
+										},
+									},
+								},
+							},
+							Volumes: []corev1.Volume{
+								{
+									Name: "conf",
+									VolumeSource: corev1.VolumeSource{
+										ConfigMap: &corev1.ConfigMapVolumeSource{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: cr.Name + "-curator-conf",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func newExporterServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-exporter",
+			Labels: map[string]string{
+				"role": "exporter",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "https",
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(9108),
+					Port:       9108,
+				},
+			},
+			Selector: map[string]string{
+				"role": "exporter",
+			},
+		},
+	}
+}
+
+func newExporterServiceAccountForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-exporter",
+		},
+	}
+}
+
+func newExporterClusterRoleBindingForCR(cr *databasev1alpha1.ElasticsearchCluster) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-exporter",
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     cr.Spec.Exporter.ClusterRole,
+		},
+	}
+}
+
+func newExporterServiceMonitorForCR(cr *databasev1alpha1.ElasticsearchCluster) *monitoringv1.ServiceMonitor {
+	return &monitoringv1.ServiceMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-exporter",
+			Labels: map[string]string{
+				"k8s-app": cr.Name + "-exporter",
+			},
+		},
+		Spec: monitoringv1.ServiceMonitorSpec{
+			JobLabel: "k8s-app",
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": "exporter",
+				},
+			},
+			NamespaceSelector: monitoringv1.NamespaceSelector{
+				MatchNames: []string{cr.Namespace},
+			},
+			Endpoints: []monitoringv1.Endpoint{
+				{
+					Port:            "https",
+					Scheme:          "https",
+					Interval:        "60s",
+					HonorLabels:     true,
+					BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+					TLSConfig: &monitoringv1.TLSConfig{
+						InsecureSkipVerify: true,
+					},
+				},
+			},
+		},
+	}
+}
+
 func Bool(b bool) *bool {
 	return &b
 }
 
 func Int64(i int64) *int64 {
+	return &i
+}
+
+func Int32(i int32) *int32 {
 	return &i
 }

@@ -19,7 +19,7 @@ type ElasticsearchClusterSpec struct {
 	WarmNode   ElasticsearchClusterNodeSpec      `json:"warm_node"`
 	ClientNode ElasticsearchClusterNodeSpec      `json:"client_node"`
 	Forwarder  ElasticsearchClusterForwarderSpec `json:"forwarder"`
-	Exporter   bool                              `json:"exporter"`
+	Exporter   ElasticsearchClusterExporterSpec  `json:"exporter"`
 }
 
 type ElasticsearchClusterNodeSpec struct {
@@ -32,6 +32,11 @@ type ElasticsearchClusterNodeSpec struct {
 
 type ElasticsearchClusterForwarderSpec struct {
 	Count int32 `json:"count"`
+}
+
+type ElasticsearchClusterExporterSpec struct {
+	Enable      bool   `json:"enable"`
+	ClusterRole string `json:"cluster_role"`
 }
 
 // ElasticsearchClusterStatus defines the observed state of ElasticsearchCluster
