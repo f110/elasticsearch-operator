@@ -69,6 +69,59 @@ gateway:
 
 processors: ${PROCESSORS:}`
 
+var forwarderConf = `<source>
+  @type forward
+  port 24224
+  bind 0.0.0.0
+</source>
+
+{{ if .Exporter }}
+<source>
+  @type prometheus
+  bind 0.0.0.0
+  port 24231
+</source>
+
+<source>
+  @type monitor_agent
+</source>
+
+<source>
+  @type prometheus_monitor
+  <labels>
+    host ${hostname}
+  </labels>
+</source>
+
+<source>
+  @type prometheus_output_monitor
+  <labels>
+    host ${hostname}
+  </labels>
+</source>
+
+<source>
+  @type prometheus_tail_monitor
+  <labels>
+    host ${hostname}
+  </labels>
+</source>
+{{ end }}
+
+<match **>
+  @type copy
+  <store>
+    @type elasticsearch
+    hosts {{ .Name }}-client:9200
+    logstash_format true
+    logstash_prefix ${tag}
+    <buffer>
+      @type file
+      path /var/log/buffer/${tag}.{{ .Name }}-client
+    </buffer>
+  </store>
+</match>`
+
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
@@ -218,6 +271,22 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 	}
 	exporterServiceMonitor := newExporterServiceMonitorForCR(instance)
 	if res, err := r.serviceMonitorReconcile(reqLogger, instance, exporterServiceMonitor); err != nil {
+		return res, err
+	}
+	forwarderConfigMap := newForwarderConfigMapForCR(instance)
+	if res, err := r.configMapReconcile(reqLogger, instance, forwarderConfigMap); err != nil {
+		return res, err
+	}
+	forwarderPDB := newForwarderPodDisruptionBudgetForCR(instance)
+	if res, err := r.podDisruptionBudgetReconcile(reqLogger, instance, forwarderPDB); err != nil {
+		return res, err
+	}
+	forwarderStatefulset := newForwarderStatefulSetForCR(instance)
+	if res, err := r.statefulNodeReconcile(reqLogger, instance, forwarderStatefulset); err != nil {
+		return res, err
+	}
+	forwarderService := newForwarderServiceForCR(instance)
+	if res, err := r.serviceReconcile(reqLogger, instance, forwarderService); err != nil {
 		return res, err
 	}
 
@@ -1095,6 +1164,191 @@ func newExporterServiceMonitorForCR(cr *databasev1alpha1.ElasticsearchCluster) *
 					BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 					TLSConfig: &monitoringv1.TLSConfig{
 						InsecureSkipVerify: true,
+					},
+				},
+			},
+		},
+	}
+}
+
+func newForwarderConfigMapForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.ConfigMap {
+	t, err := template.New("").Parse(forwarderConf)
+	if err != nil {
+		return nil
+	}
+
+	buf := &bytes.Buffer{}
+	params := struct {
+		Name     string
+		Exporter bool
+	}{
+		Name:     cr.Name,
+		Exporter: cr.Spec.Exporter.Enable,
+	}
+	if err := t.Execute(buf, &params); err != nil {
+		return nil
+	}
+
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-forwarder-conf",
+		},
+		Data: map[string]string{
+			"forwarder.conf": buf.String(),
+		},
+	}
+}
+
+func newForwarderPodDisruptionBudgetForCR(cr *databasev1alpha1.ElasticsearchCluster) *policyv1beta1.PodDisruptionBudget {
+	minAvailable := intstr.FromInt(int(cr.Spec.Forwarder.Count - 1))
+	return &policyv1beta1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-forwarder",
+		},
+		Spec: policyv1beta1.PodDisruptionBudgetSpec{
+			MinAvailable: &minAvailable,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": "forwarder",
+				},
+			},
+		},
+	}
+}
+
+func newForwarderServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-forwarder",
+			Annotations: map[string]string{
+				"cloud.google.com/load-balancer-type": "Internal",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeLoadBalancer,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "fluentd",
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(24224),
+					Port:       24224,
+				},
+			},
+			Selector: map[string]string{
+				"role": "forwarder",
+			},
+		},
+	}
+}
+
+func newForwarderStatefulSetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
+	return &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-forwarder",
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas: &cr.Spec.Forwarder.Count,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": "forwarder",
+				},
+			},
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: cr.Name + "-forwarder-buffer",
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						StorageClassName: &cr.Spec.Forwarder.StorageClass,
+						Resources: corev1.ResourceRequirements{
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resource.MustParse(cr.Spec.Forwarder.DiskSize),
+							},
+						},
+					},
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"role": "forwarder",
+					},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:            "chown",
+							Image:           "fluent/fluentd:v1.4.0",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Command:         []string{"/bin/bash", "-c", "set -e; set -x; chown fluent:fluent /var/log/buffer; for datadir in $(find /var/log/buffer -mindepth 1 -maxdepth 1); do chown -R fluent:fluent $datadir; done;"},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: Int64(0),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      cr.Name + "-forwarder-buffer",
+									MountPath: "/var/log/buffer",
+								},
+							},
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:            "forwarder",
+							Image:           "fluent/fluentd:v1.4.0",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Ports: []corev1.ContainerPort{
+								{Name: "fluentd", Protocol: corev1.ProtocolTCP, ContainerPort: 24224},
+							},
+							LivenessProbe: &corev1.Probe{
+								InitialDelaySeconds: 600,
+								PeriodSeconds:       60,
+								Handler: corev1.Handler{
+									Exec: &corev1.ExecAction{
+										Command: []string{"/bin/sh", "-c", `LIVENESS_THRESHOLD_SECONDS=${LIVENESS_THRESHOLD_SECONDS:-300};
+											STUCK_THRESHOLD_SECONDS=${LIVENESS_THRESHOLD_SECONDS:-900};
+											if [ ! -e /var/log/buffer ];
+											then
+											exit 1;
+											fi;
+											touch -d "${STUCK_THRESHOLD_SECONDS} seconds ago" /tmp/marker-stuck;
+											if [[ -z "$(find /var/log/buffer -type f -newer /tmp/marker-stuck -print -quit)" ]];
+											then
+											exit 1;
+											fi;
+											touch -d "${LIVENESS_THRESHOLD_SECONDS} seconds ago" /tmp/marker-liveness;
+											if [[ -z "$(find /var/log/buffer -type f -newer /tmp/marker-liveness -print -quit)" ]];
+											then
+											exit 1;
+											fi;`},
+									},
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "conf",
+									MountPath: "/fluentd/etc/fluent.conf",
+									SubPath:   "forwarder.conf",
+								},
+								{
+									Name:      cr.Name + "-forwarder-buffer",
+									MountPath: "/var/log/buffer",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "conf",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: cr.Name + "-forwarder-conf",
+									},
+								},
+							},
+						},
 					},
 				},
 			},

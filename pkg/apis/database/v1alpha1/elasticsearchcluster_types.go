@@ -31,7 +31,9 @@ type ElasticsearchClusterNodeSpec struct {
 }
 
 type ElasticsearchClusterForwarderSpec struct {
-	Count int32 `json:"count"`
+	Count        int32  `json:"count"`
+	StorageClass string `json:"storage_class"`
+	DiskSize     string `json:"disk_size"`
 }
 
 type ElasticsearchClusterExporterSpec struct {
