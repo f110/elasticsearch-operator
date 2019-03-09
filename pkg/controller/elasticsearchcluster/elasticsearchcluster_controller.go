@@ -531,6 +531,32 @@ func (r *ReconcileElasticsearchCluster) serviceMonitorReconcile(reqLogger logr.L
 	return reconcile.Result{}, nil
 }
 
+func (r *ReconcileElasticsearchCluster) indexTemplateReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, indexTemplate *databasev1alpha1.ElasticsearchIndexTemplate) (reconcile.Result, error) {
+	if err := controllerutil.SetControllerReference(instance, indexTemplate, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	found := &corev1.ServiceAccount{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: indexTemplate.Name, Namespace: indexTemplate.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ElasticsearchIndexTemplate", "ElasticsearchIndexTemplate.Namespace", indexTemplate.Namespace, "ElasticsearchIndexTemplate.Name", indexTemplate.Name)
+		err = r.client.Create(context.TODO(), indexTemplate)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	reqLogger.Info("Updating exists ElasticsearchIndexTemplate", "ElasticsearchIndexTemplate.Namespace", found.Namespace, "ElasticsearchIndexTemplate.Name", found.Name)
+	if err := r.client.Update(context.TODO(), indexTemplate); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
 func newHotStatefulsetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
 	return newStatefulsetNode(cr.Name, cr.Spec.HotNode)
 }
