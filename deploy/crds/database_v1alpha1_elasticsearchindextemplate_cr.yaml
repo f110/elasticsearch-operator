@@ -1,0 +1,7 @@
+apiVersion: database.f110.dev/v1alpha1
+kind: ElasticsearchIndexTemplate
+metadata:
+  name: example-elasticsearchindextemplate
+spec:
+  # Add fields here
+  size: 3

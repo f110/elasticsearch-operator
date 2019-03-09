@@ -42,5 +42,6 @@ rules:
   - database.f110.dev
   resources:
   - '*'
+  - elasticsearchindextemplates
   verbs:
   - '*'

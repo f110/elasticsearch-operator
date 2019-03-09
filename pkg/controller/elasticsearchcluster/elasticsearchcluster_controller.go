@@ -289,6 +289,10 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 	if res, err := r.serviceReconcile(reqLogger, instance, forwarderService); err != nil {
 		return res, err
 	}
+	indexTemplate := newIndexTemplateForCR(instance)
+	if res, err := r.indexTemplateReconcile(reqLogger, instance, indexTemplate); err != nil {
+		return res, err
+	}
 
 	return reconcile.Result{}, nil
 }
@@ -1352,6 +1356,22 @@ func newForwarderStatefulSetForCR(cr *databasev1alpha1.ElasticsearchCluster) *ap
 					},
 				},
 			},
+		},
+	}
+}
+
+func newIndexTemplateForCR(cr *databasev1alpha1.ElasticsearchCluster) *databasev1alpha1.ElasticsearchIndexTemplate {
+	return &databasev1alpha1.ElasticsearchIndexTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cr.Name + "-hot-index-template",
+		},
+		Spec: databasev1alpha1.ElasticsearchIndexTemplateSpec{
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": cr.Name,
+				},
+			},
+			IndexTemplate: `{"template":"*","settings":{"index.routing.allocation.require.box_type":"hot"}}`,
 		},
 	}
 }
