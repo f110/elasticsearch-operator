@@ -122,11 +122,6 @@ var forwarderConf = `<source>
   </store>
 </match>`
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
 // Add creates a new ElasticsearchCluster Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -218,7 +213,7 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 		}
 	}
 	masterStatefulset := newMasterStatefulsetForCR(instance)
-	if res, err := r.statefulNodeReconcile(reqLogger, instance, masterStatefulset); err != nil {
+	if res, err := r.statefulSetReconcile(reqLogger, instance, masterStatefulset); err != nil {
 		return res, err
 	}
 	masterService := newMasterServiceForCR(instance)
@@ -230,11 +225,11 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 		return res, err
 	}
 	hotStatefulset := newHotStatefulsetForCR(instance)
-	if res, err := r.statefulNodeReconcile(reqLogger, instance, hotStatefulset); err != nil {
+	if res, err := r.statefulSetReconcile(reqLogger, instance, hotStatefulset); err != nil {
 		return res, err
 	}
 	warmStatefulSet := newWarmStatefulsetForCR(instance)
-	if res, err := r.statefulNodeReconcile(reqLogger, instance, warmStatefulSet); err != nil {
+	if res, err := r.statefulSetReconcile(reqLogger, instance, warmStatefulSet); err != nil {
 		return res, err
 	}
 	clientDeployment := newClientDeploymentForCR(instance)
@@ -282,7 +277,7 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 		return res, err
 	}
 	forwarderStatefulset := newForwarderStatefulSetForCR(instance)
-	if res, err := r.statefulNodeReconcile(reqLogger, instance, forwarderStatefulset); err != nil {
+	if res, err := r.statefulSetReconcile(reqLogger, instance, forwarderStatefulset); err != nil {
 		return res, err
 	}
 	forwarderService := newForwarderServiceForCR(instance)
@@ -323,7 +318,7 @@ func (r *ReconcileElasticsearchCluster) deploymentReconcile(reqLogger logr.Logge
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileElasticsearchCluster) statefulNodeReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, node *appsv1.StatefulSet) (reconcile.Result, error) {
+func (r *ReconcileElasticsearchCluster) statefulSetReconcile(reqLogger logr.Logger, instance *databasev1alpha1.ElasticsearchCluster, node *appsv1.StatefulSet) (reconcile.Result, error) {
 	if err := controllerutil.SetControllerReference(instance, node, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
