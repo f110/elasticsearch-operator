@@ -553,21 +553,22 @@ func (r *ReconcileElasticsearchCluster) indexTemplateReconcile(reqLogger logr.Lo
 }
 
 func newHotStatefulsetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
-	return newStatefulsetNode(cr.Name, cr.Spec.HotNode)
+	return newStatefulsetNode(cr.Name, cr.Namespace, cr.Spec.HotNode)
 }
 
 func newWarmStatefulsetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
-	return newStatefulsetNode(cr.Name, cr.Spec.HotNode)
+	return newStatefulsetNode(cr.Name, cr.Namespace, cr.Spec.HotNode)
 }
 
 func newMasterStatefulsetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
-	return newStatefulsetNode(cr.Name, cr.Spec.MasterNode)
+	return newStatefulsetNode(cr.Name, cr.Namespace, cr.Spec.MasterNode)
 }
 
 func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-client-node",
+			Name:      cr.Name + "-client-node",
+			Namespace: cr.Namespace,
 			Labels: map[string]string{
 				"role": "client",
 			},
@@ -626,7 +627,8 @@ func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1
 func newExporterDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-exporter",
+			Name:      cr.Name + "-exporter",
+			Namespace: cr.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: Int32(1),
@@ -687,7 +689,8 @@ func newExporterDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *apps
 func newClientServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-client",
+			Name:      cr.Name + "-client",
+			Namespace: cr.Namespace,
 			Annotations: map[string]string{
 				"cloud.google.com/load-balancer-type": "Internal",
 			},
@@ -712,7 +715,8 @@ func newClientServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Se
 func newMasterServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-master",
+			Name:      cr.Name + "-master",
+			Namespace: cr.Namespace,
 			Annotations: map[string]string{
 				"service.alpha.kubernets.io/tolerate-unready-endpoints": "true",
 			},
@@ -740,7 +744,8 @@ func newMasterPodDisruptionBudgetForCR(cr *databasev1alpha1.ElasticsearchCluster
 	minAvailable := intstr.FromInt(int(cr.Spec.MasterNode.Count - 1))
 	return &policyv1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-master",
+			Name:      cr.Name + "-master",
+			Namespace: cr.Namespace,
 		},
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			MinAvailable: &minAvailable,
@@ -753,12 +758,13 @@ func newMasterPodDisruptionBudgetForCR(cr *databasev1alpha1.ElasticsearchCluster
 	}
 }
 
-func newStatefulsetNode(name string, spec databasev1alpha1.ElasticsearchClusterNodeSpec) *appsv1.StatefulSet {
+func newStatefulsetNode(name, namespace string, spec databasev1alpha1.ElasticsearchClusterNodeSpec) *appsv1.StatefulSet {
 	dataVolumeName := name + "-hot-data"
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name + "-hot-node",
+			Name:      name + "-hot-node",
+			Namespace: namespace,
 			Labels: map[string]string{
 				"app": "elasticsearch-cluster",
 			},
@@ -910,7 +916,8 @@ func initContainersForElasticsearch(dataVolumeName string) []corev1.Container {
 func newConfigMapLog4j2ForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-log4j2-conf",
+			Name:      cr.Name + "-log4j2-conf",
+			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
 			"log4j2.properties": log4j2Conf,
@@ -946,7 +953,8 @@ func newConfigMapsElasticsearchForCR(cr *databasev1alpha1.ElasticsearchCluster) 
 	}
 	configMaps = append(configMaps, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "master-es-conf",
+			Name:      cr.Name + "master-es-conf",
+			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
 			"elasticsearch.yml": buf.String(),
@@ -962,14 +970,16 @@ func newConfigMapsElasticsearchForCR(cr *databasev1alpha1.ElasticsearchCluster) 
 	}
 	configMaps = append(configMaps, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "hot-es-conf",
+			Name:      cr.Name + "hot-es-conf",
+			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
 			"elasticsearch.yml": buf.String(),
 		},
 	}, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "warm-es-conf",
+			Name:      cr.Name + "warm-es-conf",
+			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
 			"elasticsearch.yml": buf.String(),
@@ -986,7 +996,8 @@ func newConfigMapsElasticsearchForCR(cr *databasev1alpha1.ElasticsearchCluster) 
 	}
 	configMaps = append(configMaps, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "client-es-conf",
+			Name:      cr.Name + "client-es-conf",
+			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
 			"elasticsearch.yml": buf.String(),
@@ -999,7 +1010,8 @@ func newConfigMapsElasticsearchForCR(cr *databasev1alpha1.ElasticsearchCluster) 
 func newCuratorConfigMapForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-curator-conf",
+			Name:      cr.Name + "-curator-conf",
+			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
 			"config.yml": `client:
@@ -1063,7 +1075,8 @@ func newCuratorConfigMapForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1
 func newCuratorCronJobForCR(cr *databasev1alpha1.ElasticsearchCluster) *batchv1beta1.CronJob {
 	return &batchv1beta1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-curator",
+			Name:      cr.Name + "-curator",
+			Namespace: cr.Namespace,
 		},
 		Spec: batchv1beta1.CronJobSpec{
 			Schedule: "0 1 * * *",
@@ -1118,7 +1131,8 @@ func newCuratorCronJobForCR(cr *databasev1alpha1.ElasticsearchCluster) *batchv1b
 func newExporterServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-exporter",
+			Name:      cr.Name + "-exporter",
+			Namespace: cr.Namespace,
 			Labels: map[string]string{
 				"role": "exporter",
 			},
@@ -1144,7 +1158,8 @@ func newExporterServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.
 func newExporterServiceAccountForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-exporter",
+			Name:      cr.Name + "-exporter",
+			Namespace: cr.Namespace,
 		},
 	}
 }
@@ -1165,7 +1180,8 @@ func newExporterClusterRoleBindingForCR(cr *databasev1alpha1.ElasticsearchCluste
 func newExporterServiceMonitorForCR(cr *databasev1alpha1.ElasticsearchCluster) *monitoringv1.ServiceMonitor {
 	return &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-exporter",
+			Name:      cr.Name + "-exporter",
+			Namespace: cr.Namespace,
 			Labels: map[string]string{
 				"k8s-app": cr.Name + "-exporter",
 			},
@@ -1216,7 +1232,8 @@ func newForwarderConfigMapForCR(cr *databasev1alpha1.ElasticsearchCluster) *core
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-forwarder-conf",
+			Name:      cr.Name + "-forwarder-conf",
+			Namespace: cr.Namespace,
 		},
 		Data: map[string]string{
 			"forwarder.conf": buf.String(),
@@ -1228,7 +1245,8 @@ func newForwarderPodDisruptionBudgetForCR(cr *databasev1alpha1.ElasticsearchClus
 	minAvailable := intstr.FromInt(int(cr.Spec.Forwarder.Count - 1))
 	return &policyv1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-forwarder",
+			Name:      cr.Name + "-forwarder",
+			Namespace: cr.Namespace,
 		},
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			MinAvailable: &minAvailable,
@@ -1244,7 +1262,8 @@ func newForwarderPodDisruptionBudgetForCR(cr *databasev1alpha1.ElasticsearchClus
 func newForwarderServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-forwarder",
+			Name:      cr.Name + "-forwarder",
+			Namespace: cr.Namespace,
 			Annotations: map[string]string{
 				"cloud.google.com/load-balancer-type": "Internal",
 			},
@@ -1269,7 +1288,8 @@ func newForwarderServiceForCR(cr *databasev1alpha1.ElasticsearchCluster) *corev1
 func newForwarderStatefulSetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-forwarder",
+			Name:      cr.Name + "-forwarder",
+			Namespace: cr.Namespace,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas: &cr.Spec.Forwarder.Count,
@@ -1384,7 +1404,8 @@ func newForwarderStatefulSetForCR(cr *databasev1alpha1.ElasticsearchCluster) *ap
 func newIndexTemplateForCR(cr *databasev1alpha1.ElasticsearchCluster) *databasev1alpha1.ElasticsearchIndexTemplate {
 	return &databasev1alpha1.ElasticsearchIndexTemplate{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name + "-hot-index-template",
+			Name:      cr.Name + "-hot-index-template",
+			Namespace: cr.Namespace,
 		},
 		Spec: databasev1alpha1.ElasticsearchIndexTemplateSpec{
 			Selector: metav1.LabelSelector{
