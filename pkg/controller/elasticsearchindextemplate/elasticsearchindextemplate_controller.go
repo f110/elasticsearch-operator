@@ -104,7 +104,9 @@ func (r *ReconcileElasticsearchIndexTemplate) Reconcile(request reconcile.Reques
 	}
 
 	clusters := &databasev1alpha1.ElasticsearchClusterList{}
-	err = r.client.List(context.TODO(), client.ListOptions{}.MatchingLabels(instance.Spec.Selector.MatchLabels), clusters)
+	opt := &client.ListOptions{}
+	opt.MatchingLabels(instance.Spec.Selector.MatchLabels)
+	err = r.client.List(context.TODO(), opt, clusters)
 	if err != nil {
 		return reconcile.Result{}, nil
 	}

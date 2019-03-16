@@ -3,5 +3,25 @@ kind: ElasticsearchCluster
 metadata:
   name: example-elasticsearchcluster
 spec:
-  # Add fields here
-  size: 3
+  hot_warm: true
+  master_node:
+    count: 3
+    disk_size: "1"
+    heap_size: 512m
+  hot_node:
+    count: 1
+    disk_size: "10"
+    heap_size: 512m
+  warm_node:
+    count: 1
+    disk_size: "10"
+    heap_size: 512m
+  client_node:
+    count: 1
+    heap_size: 512m
+  forwarder:
+    count: 1
+    disk_size: 1Gi
+  exporter:
+    enable: false
+    cluster_role: prometheus

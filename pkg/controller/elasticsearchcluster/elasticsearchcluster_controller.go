@@ -268,17 +268,22 @@ func (r *ReconcileElasticsearchCluster) hotWarmClusterReconcile(reqLogger logr.L
 	if res, err := r.cronJobReconcile(reqLogger, instance, curatorCronJob); err != nil {
 		return res, err
 	}
-	exporterServiceAccount := newExporterServiceAccountForCR(instance)
-	if res, err := r.serviceAccountReconcile(reqLogger, instance, exporterServiceAccount); err != nil {
-		return res, err
-	}
-	exporterClusterRoleBinding := newExporterClusterRoleBindingForCR(instance)
-	if res, err := r.clusterRoleBindingReconcile(reqLogger, instance, exporterClusterRoleBinding); err != nil {
-		return res, err
-	}
-	exporterServiceMonitor := newExporterServiceMonitorForCR(instance)
-	if res, err := r.serviceMonitorReconcile(reqLogger, instance, exporterServiceMonitor); err != nil {
-		return res, err
+
+	if instance.Spec.Exporter.Enable {
+		exporterServiceAccount := newExporterServiceAccountForCR(instance)
+		if res, err := r.serviceAccountReconcile(reqLogger, instance, exporterServiceAccount); err != nil {
+			return res, err
+		}
+
+		exporterClusterRoleBinding := newExporterClusterRoleBindingForCR(instance)
+		if res, err := r.clusterRoleBindingReconcile(reqLogger, instance, exporterClusterRoleBinding); err != nil {
+			return res, err
+		}
+
+		exporterServiceMonitor := newExporterServiceMonitorForCR(instance)
+		if res, err := r.serviceMonitorReconcile(reqLogger, instance, exporterServiceMonitor); err != nil {
+			return res, err
+		}
 	}
 	indexTemplate := newIndexTemplateForCR(instance)
 	if res, err := r.indexTemplateReconcile(reqLogger, instance, indexTemplate); err != nil {
@@ -360,6 +365,8 @@ func (r *ReconcileElasticsearchCluster) serviceReconcile(reqLogger logr.Logger, 
 	}
 
 	reqLogger.Info("Updating exists Service", "Service.Namespace", found.Namespace, "Service.Name", found.Name)
+	service.ObjectMeta = found.ObjectMeta
+	service.Spec.ClusterIP = found.Spec.ClusterIP
 	if err := r.client.Update(context.TODO(), service); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -386,6 +393,7 @@ func (r *ReconcileElasticsearchCluster) podDisruptionBudgetReconcile(reqLogger l
 	}
 
 	reqLogger.Info("Updating exists PodDisruptionBudget", "PodDisruptionBudget.Namespace", found.Namespace, "PodDisruptionBudget.Name", found.Name)
+	pdb.ObjectMeta = found.ObjectMeta
 	if err := r.client.Update(context.TODO(), pdb); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -549,15 +557,15 @@ func (r *ReconcileElasticsearchCluster) indexTemplateReconcile(reqLogger logr.Lo
 }
 
 func newHotStatefulsetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
-	return newStatefulsetNode(cr, cr.Spec.HotNode)
+	return newStatefulsetNode(cr, cr.Spec.HotNode, "hot")
 }
 
 func newWarmStatefulsetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
-	return newStatefulsetNode(cr, cr.Spec.HotNode)
+	return newStatefulsetNode(cr, cr.Spec.WarmNode, "warm")
 }
 
 func newMasterStatefulsetForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.StatefulSet {
-	return newStatefulsetNode(cr, cr.Spec.MasterNode)
+	return newStatefulsetNode(cr, cr.Spec.MasterNode, "master")
 }
 
 func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1.Deployment {
@@ -571,6 +579,11 @@ func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &cr.Spec.ClientNode.Count,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": "client",
+				},
+			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: commonLabels(cr, map[string]string{
@@ -579,7 +592,56 @@ func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1
 				},
 				Spec: corev1.PodSpec{
 					InitContainers: initContainersForElasticsearch("data"),
-					Containers:     []corev1.Container{},
+					Containers: []corev1.Container{
+						{
+							Name:            "elasticsearch",
+							Image:           "elasticsearch/elasticsearch:v6.6.0",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Env: []corev1.EnvVar{
+								{
+									Name: "PROCESSORS",
+									ValueFrom: &corev1.EnvVarSource{
+										ResourceFieldRef: &corev1.ResourceFieldSelector{
+											Resource: "limits.cpu",
+										},
+									},
+								},
+								{
+									Name:  "ES_JAVA_OPTS",
+									Value: "-Djava.net.preferIPv4Stack=true -Xms{{ .Values.hot.heapSize }} -Xmx{{ .Values.hot.heapSize }}",
+								},
+							},
+							Ports: []corev1.ContainerPort{
+								{ContainerPort: 9300},
+								{ContainerPort: 9200},
+							},
+							ReadinessProbe: &corev1.Probe{
+								InitialDelaySeconds: 5,
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Port: intstr.FromInt(9200),
+										Path: "/_cluster/health?local=true",
+									},
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "data",
+									MountPath: "/usr/share/elasticsearch/data",
+								},
+								{
+									Name:      "conf",
+									MountPath: "/usr/share/elasticsearch/config/elasticsearch.yml",
+									SubPath:   "elasticsearch.yml",
+								},
+								{
+									Name:      "log4j2-conf",
+									MountPath: "/usr/share/elasticsearch/config/log4j2.properties",
+									SubPath:   "log4j2.properties",
+								},
+							},
+						},
+					},
 					SecurityContext: &corev1.PodSecurityContext{
 						FSGroup: Int64(1000),
 					},
@@ -609,7 +671,7 @@ func newClientDeploymentForCR(cr *databasev1alpha1.ElasticsearchCluster) *appsv1
 							VolumeSource: corev1.VolumeSource{
 								EmptyDir: &corev1.EmptyDirVolumeSource{
 									Medium:    corev1.StorageMediumMemory,
-									SizeLimit: resource.NewQuantity(256*1024*1024, resource.BinarySI), // 256Mi
+									SizeLimit: resource.NewQuantity(1024*1024*1024, resource.BinarySI), // 1024Mi
 								},
 							},
 						},
@@ -758,12 +820,12 @@ func newMasterPodDisruptionBudgetForCR(cr *databasev1alpha1.ElasticsearchCluster
 	}
 }
 
-func newStatefulsetNode(cr *databasev1alpha1.ElasticsearchCluster, spec databasev1alpha1.ElasticsearchClusterNodeSpec) *appsv1.StatefulSet {
-	dataVolumeName := cr.Name + "-hot-data"
+func newStatefulsetNode(cr *databasev1alpha1.ElasticsearchCluster, spec databasev1alpha1.ElasticsearchClusterNodeSpec, role string) *appsv1.StatefulSet {
+	dataVolumeName := cr.Name + "-" + role + "-data"
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-hot-node",
+			Name:      cr.Name + "-" + role + "-node",
 			Namespace: cr.Namespace,
 			Labels: commonLabels(cr, map[string]string{
 				"app": "elasticsearch-cluster",
@@ -786,10 +848,15 @@ func newStatefulsetNode(cr *databasev1alpha1.ElasticsearchCluster, spec database
 					},
 				},
 			},
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"role": role,
+				},
+			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: commonLabels(cr, map[string]string{
-						"role": "hot",
+						"role": role,
 					}),
 				},
 				Spec: corev1.PodSpec{
@@ -853,7 +920,7 @@ func newStatefulsetNode(cr *databasev1alpha1.ElasticsearchCluster, spec database
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: cr.Name + "-hot-es-conf",
+										Name: cr.Name + "-" + role + "-es-conf",
 									},
 								},
 							},
